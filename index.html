@@ -1,0 +1,158 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#101010">
+  <title>Nova AI</title>
+  <link rel="stylesheet" href="styles.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.11.1/styles/github-dark.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/dompurify@3.2.6/dist/purify.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.11.1/highlight.min.js"></script>
+  <script src="config.js"></script>
+  <script defer src="app.js"></script>
+</head>
+<body>
+  <div id="authScreen" class="auth-screen">
+    <section class="auth-card">
+      <div class="brand-mark">✳</div>
+      <h1>Welcome to Nova</h1>
+      <p class="muted">Your workspace for thinking, creating, and building.</p>
+      <div class="auth-tabs">
+        <button class="tab active" data-auth-tab="login">Sign in</button>
+        <button class="tab" data-auth-tab="signup">Create account</button>
+      </div>
+      <form id="authForm">
+        <label>Email<input id="authEmail" type="email" autocomplete="email" required></label>
+        <label>Password<input id="authPassword" type="password" minlength="8" autocomplete="current-password" required></label>
+        <button class="primary full" id="authSubmit">Sign in</button>
+      </form>
+      <button class="google-button full" id="googleLogin">Continue with Google</button>
+      <button class="text-button full" id="forgotPassword">Forgot password?</button>
+      <p class="tiny muted" id="authNotice">Email confirmation may be required depending on your Supabase settings.</p>
+    </section>
+  </div>
+
+  <div id="app" class="app hidden">
+    <aside id="sidebar" class="sidebar">
+      <div class="sidebar-top">
+        <button class="brand" id="brandHome"><span class="brand-mark small">✳</span><span>Nova</span></button>
+        <button class="icon-button" id="collapseSidebar" title="Collapse sidebar">◧</button>
+      </div>
+      <button class="new-chat" id="newChat"><span>＋</span> New chat <kbd>Ctrl K</kbd></button>
+      <div class="search-wrap"><span>⌕</span><input id="chatSearch" placeholder="Search chats"></div>
+      <div class="history-label">YOUR CHATS</div>
+      <nav id="conversationList" class="conversation-list"></nav>
+      <div class="sidebar-bottom">
+        <button class="profile-button" id="profileButton"><span class="avatar" id="avatar">N</span><span class="profile-text"><b id="profileName">Account</b><small id="profileEmail"></small></span><span>···</span></button>
+      </div>
+    </aside>
+
+    <main class="main">
+      <header class="topbar">
+        <div class="top-left">
+          <button class="icon-button mobile-only" id="mobileMenu">☰</button>
+          <span class="current-title" id="currentTitle">New chat</span>
+        </div>
+        <div class="top-actions">
+          <select id="providerSelect" aria-label="AI provider">
+            <option value="openai">OpenAI</option><option value="groq">Groq</option><option value="gemini">Gemini</option>
+          </select>
+          <select id="modelSelect" aria-label="AI model"></select>
+          <select id="promptSelect" aria-label="Active prompt"><option value="">Default instructions</option></select>
+          <button class="icon-button" id="settingsButton" title="Settings">⚙</button>
+        </div>
+      </header>
+
+      <section id="chatView" class="chat-view">
+        <div id="welcome" class="welcome">
+          <div class="welcome-symbol">✳</div>
+          <h1>What can I help you with?</h1>
+          <p class="muted">Ask a question, explore an idea, or start building something.</p>
+          <div class="suggestions">
+            <button data-suggestion="Explain a difficult topic in simple terms.">◈ <span><b>Learn something</b><small>Break down a complex topic</small></span></button>
+            <button data-suggestion="Help me plan and organize a project.">▤ <span><b>Plan a project</b><small>Turn an idea into a plan</small></span></button>
+            <button data-suggestion="Review this code and suggest improvements.">⌘ <span><b>Write code</b><small>Debug or build something</small></span></button>
+            <button data-suggestion="Help me brainstorm creative ideas.">✧ <span><b>Brainstorm</b><small>Explore new possibilities</small></span></button>
+          </div>
+        </div>
+        <div id="messages" class="messages"></div>
+      </section>
+
+      <footer class="composer-area">
+        <div class="composer">
+          <textarea id="messageInput" rows="1" placeholder="Message Nova..." aria-label="Message"></textarea>
+          <div class="composer-bottom">
+            <div class="composer-tools">
+              <label class="attach-button" title="Attach a file">＋<input id="fileInput" type="file" hidden multiple accept="image/*,.txt,.md,.pdf,.csv,.json"></label>
+              <span class="active-prompt-label" id="activePromptLabel">Default prompt</span>
+            </div>
+            <div class="send-tools"><span id="tokenHint" class="tiny muted"></span><button id="sendButton" class="send-button" title="Send">↑</button></div>
+          </div>
+        </div>
+        <p class="disclaimer">Nova can make mistakes. Verify important information.</p>
+      </footer>
+    </main>
+  </div>
+
+  <div id="settingsModal" class="modal hidden">
+    <div class="modal-card settings-card">
+      <div class="modal-header"><div><h2>Settings</h2><p class="muted">Personalize your Nova workspace.</p></div><button class="icon-button" data-close="settingsModal">×</button></div>
+      <div class="settings-layout">
+        <nav class="settings-nav">
+          <button class="active" data-settings-tab="general">General</button>
+          <button data-settings-tab="ai">AI models</button>
+          <button data-settings-tab="instructions">Custom instructions</button>
+          <button data-settings-tab="prompts">Prompt presets</button>
+          <button data-settings-tab="account">Account & data</button>
+        </nav>
+        <div class="settings-content">
+          <section class="settings-pane active" data-pane="general">
+            <h3>Appearance</h3>
+            <label>Theme<select id="themeSetting"><option value="dark">Dark</option><option value="light">Light</option><option value="system">System</option></select></label>
+            <label>Response length<select id="lengthSetting"><option value="short">Short</option><option value="balanced">Balanced</option><option value="long">Long</option></select></label>
+            <label>Temperature <span id="temperatureValue">0.7</span><input id="temperatureSetting" type="range" min="0" max="2" step=".1" value=".7"></label>
+          </section>
+          <section class="settings-pane" data-pane="ai">
+            <h3>AI provider</h3>
+            <p class="muted">Provider credentials are configured as Supabase Edge Function secrets, never here.</p>
+            <label>Default provider<select id="defaultProvider"><option value="openai">OpenAI</option><option value="groq">Groq</option><option value="gemini">Google Gemini</option></select></label>
+            <label>Default model<select id="defaultModel"></select></label>
+            <p class="hint">The model list is editable in app.js. Availability depends on your provider account and API access.</p>
+          </section>
+          <section class="settings-pane" data-pane="instructions">
+            <h3>Custom instructions</h3>
+            <p class="muted">These instructions are included in AI requests when enabled. They cannot override platform security controls.</p>
+            <label>My instructions<textarea id="customInstructions" rows="8" placeholder="Tell Nova how you prefer responses..."></textarea></label>
+            <label class="check-label"><input id="instructionsEnabled" type="checkbox" checked> Enable these instructions</label>
+            <button class="primary" id="saveInstructions">Save instructions</button>
+          </section>
+          <section class="settings-pane" data-pane="prompts">
+            <h3>Prompt presets</h3>
+            <div class="prompt-editor">
+              <input id="promptName" placeholder="Preset name">
+              <textarea id="promptContent" rows="5" placeholder="Write the system prompt for this preset..."></textarea>
+              <label class="check-label"><input id="promptDefault" type="checkbox"> Make this my default prompt</label>
+              <button class="primary" id="savePrompt">Save prompt preset</button>
+            </div>
+            <div id="savedPrompts" class="saved-prompts"></div>
+          </section>
+          <section class="settings-pane" data-pane="account">
+            <h3>Account</h3>
+            <p id="accountEmail" class="muted"></p>
+            <button class="secondary" id="exportChats">Export conversations (JSON)</button>
+            <button class="danger" id="deleteAllChats">Delete all conversations</button>
+            <button class="secondary" id="logoutButton">Sign out</button>
+          </section>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="toast" class="toast"></div>
+</body>
+</html>
